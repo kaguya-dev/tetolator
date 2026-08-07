@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tetolator - 3D Print Log</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <h1>Tetolator</h1>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="prints">Prints</button>
+      <button class="tab" data-tab="clients">Clients</button>
+      <button class="tab" data-tab="filaments">Filaments</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <button class="tab" data-tab="backup">Backup</button>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <!-- ===================== PRINTS ===================== -->
+    <section id="tab-prints" class="panel active">
+      <div class="panel-head">
+        <h2>Prints</h2>
+        <button class="btn btn-primary" id="btn-new-print">+ New Print</button>
+      </div>
+
+      <div class="filters" id="print-filters">
+        <label>Client
+          <select id="filter-client"></select>
+        </label>
+        <label>Filament
+          <select id="filter-filament"></select>
+        </label>
+        <label>From
+          <input type="date" id="filter-from" />
+        </label>
+        <label>To
+          <input type="date" id="filter-to" />
+        </label>
+        <button class="btn" id="btn-clear-filters">Clear</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Client</th>
+              <th>Filament</th>
+              <th>Weight (g)</th>
+              <th>Duration</th>
+              <th>Date</th>
+              <th class="num">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="prints-body"></tbody>
+        </table>
+      </div>
+      <p class="summary" id="prints-summary"></p>
+    </section>
+
+    <!-- ===================== CLIENTS ===================== -->
+    <section id="tab-clients" class="panel">
+      <div class="panel-head">
+        <h2>Clients / Projects</h2>
+        <button class="btn btn-primary" id="btn-new-client">+ New Client</button>
+      </div>
+      <div class="cards" id="clients-list"></div>
+    </section>
+
+    <!-- ===================== FILAMENTS ===================== -->
+    <section id="tab-filaments" class="panel">
+      <div class="panel-head">
+        <h2>Filament Profiles</h2>
+        <button class="btn btn-primary" id="btn-new-filament">+ New Filament</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Brand</th>
+              <th>Material</th>
+              <th>Color</th>
+              <th>Spool (g)</th>
+              <th>Price</th>
+              <th class="num">Price/kg</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="filaments-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== SETTINGS ===================== -->
+    <section id="tab-settings" class="panel">
+      <div class="panel-head"><h2>Settings</h2></div>
+      <form id="settings-form" class="form">
+        <label>Currency symbol
+          <input type="text" name="currency" maxlength="4" placeholder="$" />
+        </label>
+        <label>Cost per hour (electricity / machine)
+          <input type="number" name="cost_per_hour" step="0.01" min="0" placeholder="0.00" />
+        </label>
+        <label>Markup (%) on top of the subtotal
+          <input type="number" name="markup_percent" step="0.1" min="0" placeholder="0" />
+        </label>
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+        <p class="hint">Settings apply to new prints. Existing records keep the cost saved at the time they were logged.</p>
+      </form>
+    </section>
+
+    <!-- ===================== BACKUP ===================== -->
+    <section id="tab-backup" class="panel">
+      <div class="panel-head"><h2>Backup &amp; Restore</h2></div>
+
+      <div class="backup-block">
+        <h3>Export</h3>
+        <p>Download all data as a ZIP containing one CSV per table. Open the CSVs in any spreadsheet or text editor.</p>
+        <div class="row">
+          <button class="btn btn-primary" id="btn-export-all">Download full backup (ZIP)</button>
+          <button class="btn" id="btn-export-prints">Export prints only (CSV)</button>
+          <button class="btn" id="btn-export-clients">Export clients (CSV)</button>
+          <button class="btn" id="btn-export-filaments">Export filaments (CSV)</button>
+        </div>
+      </div>
+
+      <div class="backup-block">
+        <h3>Restore</h3>
+        <p>Upload a ZIP backup or an individual CSV to replace the current data.</p>
+        <div class="row">
+          <label class="file-label btn" for="file-zip">Upload ZIP backup</label>
+          <input type="file" id="file-zip" accept=".zip" class="hidden" />
+          <label class="file-label btn" for="file-prints">Upload prints.csv</label>
+          <input type="file" id="file-prints" accept=".csv" class="hidden" />
+          <label class="file-label btn" for="file-clients">Upload clients.csv</label>
+          <input type="file" id="file-clients" accept=".csv" class="hidden" />
+          <label class="file-label btn" for="file-filaments">Upload filaments.csv</label>
+          <input type="file" id="file-filaments" accept=".csv" class="hidden" />
+        </div>
+      </div>
+
+      <p class="summary" id="backup-result"></p>
+    </section>
+
+  </main>
+
+  <!-- ===================== MODAL ===================== -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal">
+      <h2 id="modal-title"></h2>
+      <form id="modal-form" class="form">
+        <div id="modal-fields"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary" id="modal-save">Save</button>
+          <button type="button" class="btn" id="modal-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
