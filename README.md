@@ -120,8 +120,18 @@ planner/
   settings.py     # settings (currency, cost/hour, markup)
   backup.py       # CSV export / import (ZIP and single tables)
   requirements.txt
+  plugins/
+    orcaslicer/   # OrcaSlicer plugin to auto-log sliced prints
   data/           # tetolator.db is created here on first run
   static/         # frontend (plain HTML/CSS/JS, no build step)
 ```
 
 See `LOGGED.md` for a detailed technical walkthrough of how the code works.
+
+## OrcaSlicer plugin (optional)
+
+An OrcaSlicer plugin can automatically log each sliced/exported print into
+Tetolator (model, filament weight, estimated time, matched filament profile).
+Install and configure it from the Plugins window - see
+[`plugins/orcaslicer/README.md`](plugins/orcaslicer/README.md).
+

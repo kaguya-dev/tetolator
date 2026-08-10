@@ -176,3 +176,85 @@ No automated test suite is included. The project was validated manually by
 exercising the full API surface and a backup → wipe → restore round trip.
 If you add logic, consider `pytest` with Flask's test client
 (`app.app.test_client()`), mirroring the check used during development.
+
+---
+
+# OrcaSlicer plugin (`plugins/orcaslicer/`)
+
+A slicing-pipeline plugin for OrcaSlicer 2.4.x that auto-logs sliced prints
+into Tetolator. It runs after G-code export and POSTs a new record to
+`POST /api/prints`; Tetolator computes the cost. No Tetolator changes needed.
+
+## How it works
+
+OrcaSlicer's native plugin system embeds a CPython interpreter exposing the
+`orca` module. Plugins are single `.py` files with PEP 723 metadata, installed
+under `{data_dir}/orca_plugins/<plugin>/` (`data_dir` =
+`~/.config/OrcaSlicer` on Linux). Discovery reads the `[tool.orcaslicer.plugin]`
+table; the host instantiates the `@orca.plugin`-decorated package class and
+calls `register_capabilities()`.
+
+`tetolator.py` registers one capability of type
+`orca.slicing.SlicingPipelineCapabilityBase` (`TetolatorLogger`). At the
+`Step.psGCodePostProcess` step the context carries `gcode_path`, `output_name`,
+`host`, and a working `config_value()`; the live slicing graph (`ctx.print`)
+is `None` there, so all data comes from parsing the exported G-code header.
+
+## Code structure
+
+| Part | Role |
+|---|---|
+| `parse_gcode_stats()` | regex extraction of `total filament used [g]`, `estimated printing time`, `filament_settings_id`, `filament_type` |
+| `match_filament()` | ranked name/substring/material match against `GET /api/filaments` |
+| `http_json()` / `fetch_filaments()` / `post_print()` | stdlib `urllib` calls, no dependencies |
+| `build_payload()` | maps stats → Tetolator `POST /api/prints` body |
+| `compute_key()` / `load_state()` / `save_state()` | duplicate guard via `logged.json` in the plugin dir |
+| `TetolatorLogger.execute()` | orchestrates the above; never lets a failure break the export |
+| `TetolatorPackage` | `@orca.plugin` package; calls `orca.register_capability()` |
+
+The `import orca` is optional (guarded), so helpers are unit-testable without
+OrcaSlicer. `plugin_state_dir()` can be overridden via the
+`TETOLATOR_PLUGIN_STATE_DIR` env var (used by tests).
+
+## Config
+
+Stored via the host's per-capability JSON config (`get_config()` /
+`save_config()`), edited in the Plugins dialog's Config tab (built-in JSON
+editor). Keys: `base_url` (default `http://127.0.0.1:5000`),
+`default_client_id` (empty = log without client).
+
+## Failure handling
+
+Every failure is caught and returned as
+`orca.ExecutionResult.failure(orca.PluginResult.RecoverableError, ...)`, which
+surfaces as a warning in the Plugins dialog / `python_*.log`. The export is
+never blocked or modified.
+
+## Testing
+
+- `plugins/orcaslicer/tests/test_parser.py` - pure-helper unit tests, no
+  OrcaSlicer required (works because `import orca` is optional).
+- `plugins/orcaslicer/tests/test_plugin_live.py` - stubs the real `orca`
+  bindings (mirrored from OrcaSlicer 2.4.2 source), imports the actual plugin,
+  instantiates the package, and runs `execute()` end-to-end against a running
+  Tetolator (logging, duplicate skip, new-model create, server-down error).
+  Self-cleans its test records.
+
+Run them:
+
+```bash
+.venv/bin/python plugins/orcaslicer/tests/test_parser.py
+.venv/bin/python plugins/orcaslicer/tests/test_plugin_live.py http://127.0.0.1:5000
+```
+
+## Extension notes
+
+- **Actual print time (v2):** replace the slicing-pipeline hook with a
+  `PrinterAgentBase` capability when that API matures; the payload/parse code
+  stays the same.
+- **Custom config UI:** `has_config_ui()` + `get_config_ui()` returning HTML
+  that uses `window.orca.getConfig()`/`saveConfig()` (currently the built-in
+  JSON editor is used for reliability).
+- **Multi-extruder:** `filament_settings_id` is single-preset today; extend
+  matching to the per-tool filament list if needed.
+
